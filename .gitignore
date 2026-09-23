@@ -26,5 +26,6 @@ go.work
 
 # private or keys
 .env
+secrets/*
 
 # End of https://www.toptal.com/developers/gitignore/api/go

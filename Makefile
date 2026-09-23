@@ -11,11 +11,13 @@ GOOSE := goose -env .env
 # 1 = sudah ada file migrasi; 0 = folder masih kosong (starter).
 HAS_MIGRATIONS := $(shell ls db/postgres/migrations/*.sql >/dev/null 2>&1 && echo 1 || echo 0)
 NO_MIGRATIONS_MSG := "Belum ada file migrasi (db/postgres/migrations/ kosong). Buat yang pertama: make migrate name=nama_migrasi (lihat readme/module-development.md)."
+FIREBASE_SERVICE_ACCOUNT_FILE := ./secrets/service-account.json
 
 .DEFAULT_GOAL := help
 
 .PHONY: help dev build test vet fmt fmt-check tidy check \
-        up up-one down down-all reset migrate status sqlc install-tools
+        up up-one down down-all reset migrate status sqlc install-tools \
+        firebase-credentials
 
 # ------------------------------------------------------------
 # Help
@@ -95,3 +97,9 @@ sqlc: ## Generate kode repository dari query SQL (sqlc)
 		echo "Tidak ada query module (db/postgres/queries kosong)."; \
 		echo "Tambah module dulu: db/postgres/queries/<module>/*.sql + entry di sqlc.yaml — lihat readme/module-development.md."; \
 	fi
+
+
+#firebase
+firebase-credentials:
+	@base64 -w 0 $(FIREBASE_SERVICE_ACCOUNT_FILE)
+	@echo

@@ -1,0 +1,17 @@
+version: "2"
+
+sql:
+    - engine: postgresql
+      schema: "db/postgres/migrations"
+      queries: "db/postgres/queries/identity"
+      gen:
+          go:
+              package: "repository"
+              out: "internal/modules/identity/repository"
+              sql_package: "pgx/v5"
+              emit_json_tags: false
+              overrides:
+                  - db_type: "uuid"
+                    go_type:
+                      import: "uuid"
+                      type: "UUID"

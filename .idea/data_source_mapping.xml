@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="DataSourcePerFileMappings">
+    <file url="file://$PROJECT_DIR$/db/postgres/queries/identity/users.sql" value="50d5bf03-0dc9-44c5-b34f-23d2b051dac1" />
+  </component>
+</project>
