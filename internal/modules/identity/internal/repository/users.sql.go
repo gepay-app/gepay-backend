@@ -14,7 +14,7 @@ import (
 const createUser = `-- name: CreateUser :one
 INSERT INTO identity.users (id, auth_provider, auth_provider_id, email, role, status, kyc_status)
 VALUES ($1, $2, $3, $4, $5, $6, $7)
-    RETURNING id, auth_provider, auth_provider_id, email, role, status, kyc_status, created_at, updated_at
+    RETURNING id, auth_provider, auth_provider_id, email, role, status, kyc_status, first_name, last_name, nickname, created_at, updated_at
 `
 
 type CreateUserParams struct {
@@ -27,6 +27,8 @@ type CreateUserParams struct {
 	KycStatus      string
 }
 
+// first_name/last_name/nickname sengaja TIDAK diisi: Firebase first login hanya
+// membawa email + UID, profil dilengkapi lewat endpoint profile-completion.
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (IdentityUser, error) {
 	row := q.db.QueryRow(ctx, createUser,
 		arg.ID,
@@ -46,6 +48,9 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (Identit
 		&i.Role,
 		&i.Status,
 		&i.KycStatus,
+		&i.FirstName,
+		&i.LastName,
+		&i.Nickname,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -53,7 +58,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (Identit
 }
 
 const getUserByAuthProviderID = `-- name: GetUserByAuthProviderID :one
-SELECT id, auth_provider, auth_provider_id, email, role, status, kyc_status, created_at, updated_at FROM identity.users WHERE auth_provider = $1 AND auth_provider_id = $2
+SELECT id, auth_provider, auth_provider_id, email, role, status, kyc_status, first_name, last_name, nickname, created_at, updated_at FROM identity.users WHERE auth_provider = $1 AND auth_provider_id = $2
 `
 
 type GetUserByAuthProviderIDParams struct {
@@ -72,6 +77,9 @@ func (q *Queries) GetUserByAuthProviderID(ctx context.Context, arg GetUserByAuth
 		&i.Role,
 		&i.Status,
 		&i.KycStatus,
+		&i.FirstName,
+		&i.LastName,
+		&i.Nickname,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -79,7 +87,7 @@ func (q *Queries) GetUserByAuthProviderID(ctx context.Context, arg GetUserByAuth
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, auth_provider, auth_provider_id, email, role, status, kyc_status, created_at, updated_at FROM identity.users WHERE id = $1
+SELECT id, auth_provider, auth_provider_id, email, role, status, kyc_status, first_name, last_name, nickname, created_at, updated_at FROM identity.users WHERE id = $1
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (IdentityUser, error) {
@@ -93,6 +101,9 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (IdentityUser, 
 		&i.Role,
 		&i.Status,
 		&i.KycStatus,
+		&i.FirstName,
+		&i.LastName,
+		&i.Nickname,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -100,7 +111,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (IdentityUser, 
 }
 
 const updateUserKYCStatus = `-- name: UpdateUserKYCStatus :one
-UPDATE identity.users SET kyc_status = $2, updated_at = now() WHERE id = $1 RETURNING id, auth_provider, auth_provider_id, email, role, status, kyc_status, created_at, updated_at
+UPDATE identity.users SET kyc_status = $2, updated_at = now() WHERE id = $1 RETURNING id, auth_provider, auth_provider_id, email, role, status, kyc_status, first_name, last_name, nickname, created_at, updated_at
 `
 
 type UpdateUserKYCStatusParams struct {
@@ -119,6 +130,47 @@ func (q *Queries) UpdateUserKYCStatus(ctx context.Context, arg UpdateUserKYCStat
 		&i.Role,
 		&i.Status,
 		&i.KycStatus,
+		&i.FirstName,
+		&i.LastName,
+		&i.Nickname,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateUserProfile = `-- name: UpdateUserProfile :one
+UPDATE identity.users 
+SET first_name = $2, last_name = $3, nickname = $4, updated_at = now() 
+WHERE id = $1 RETURNING id, auth_provider, auth_provider_id, email, role, status, kyc_status, first_name, last_name, nickname, created_at, updated_at
+`
+
+type UpdateUserProfileParams struct {
+	ID        uuid.UUID
+	FirstName *string
+	LastName  *string
+	Nickname  *string
+}
+
+func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) (IdentityUser, error) {
+	row := q.db.QueryRow(ctx, updateUserProfile,
+		arg.ID,
+		arg.FirstName,
+		arg.LastName,
+		arg.Nickname,
+	)
+	var i IdentityUser
+	err := row.Scan(
+		&i.ID,
+		&i.AuthProvider,
+		&i.AuthProviderID,
+		&i.Email,
+		&i.Role,
+		&i.Status,
+		&i.KycStatus,
+		&i.FirstName,
+		&i.LastName,
+		&i.Nickname,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -126,7 +178,7 @@ func (q *Queries) UpdateUserKYCStatus(ctx context.Context, arg UpdateUserKYCStat
 }
 
 const updateUserRole = `-- name: UpdateUserRole :one
-UPDATE identity.users SET role = $2, updated_at = now() WHERE id = $1 RETURNING id, auth_provider, auth_provider_id, email, role, status, kyc_status, created_at, updated_at
+UPDATE identity.users SET role = $2, updated_at = now() WHERE id = $1 RETURNING id, auth_provider, auth_provider_id, email, role, status, kyc_status, first_name, last_name, nickname, created_at, updated_at
 `
 
 type UpdateUserRoleParams struct {
@@ -145,6 +197,9 @@ func (q *Queries) UpdateUserRole(ctx context.Context, arg UpdateUserRoleParams) 
 		&i.Role,
 		&i.Status,
 		&i.KycStatus,
+		&i.FirstName,
+		&i.LastName,
+		&i.Nickname,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

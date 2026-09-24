@@ -7,9 +7,12 @@ sql:
       gen:
           go:
               package: "repository"
-              out: "internal/modules/identity/repository"
+              out: "internal/modules/identity/internal/repository"
               sql_package: "pgx/v5"
               emit_json_tags: false
+              # Kolom nullable (mis. first_name/last_name/nickname) jadi *string,
+              # bukan pgtype.Text — lebih ringkas dipetakan ke entity domain.
+              emit_pointers_for_null_types: true
               overrides:
                   - db_type: "uuid"
                     go_type:

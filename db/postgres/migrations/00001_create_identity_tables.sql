@@ -5,20 +5,23 @@ CREATE TABLE IF NOT EXISTS identity.users
     id               UUID PRIMARY KEY,
     auth_provider    VARCHAR(32)  NOT NULL,
     auth_provider_id VARCHAR(255) NOT NULL,
-    email            VARCHAR(255) NOT NULL,
+    email            VARCHAR(255) NOT NULL CHECK (btrim(email) <> ''),
     role             VARCHAR(32)  NOT NULL DEFAULT 'USER',
     status           VARCHAR(32)  NOT NULL DEFAULT 'ACTIVE',
     kyc_status       VARCHAR(32)  NOT NULL DEFAULT 'UNVERIFIED',
-    first_name       VARCHAR(50)  NOT NULL,
-    last_name        VARCHAR(50)  NOT NULL,
-    nickname         VARCHAR(50)  NOT NULL,
+    -- Profil dilengkapi setelah login pertama (endpoint profile-completion).
+    -- NULLABLE karena Firebase hanya menjamin email + UID saat first login;
+    first_name       VARCHAR(50),
+    last_name        VARCHAR(50),
+    nickname         VARCHAR(50),
     created_at       TIMESTAMPTZ  NOT NULL DEFAULT now(),
     updated_at       TIMESTAMPTZ  NOT NULL DEFAULT now(),
     UNIQUE (auth_provider, auth_provider_id),
+    -- email = identitas utama user (selalu dibawa provider auth) dan disimpan
+    -- lowercase oleh service, jadi unique biasa sudah case-insensitive.
+    UNIQUE (email),
     UNIQUE (nickname)
 );
-
-CREATE INDEX idx_users_email ON identity.users (email);
 
 -- cursor pagination index
 CREATE INDEX idx_users_created_at_id

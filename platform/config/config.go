@@ -46,6 +46,19 @@ type App struct {
 
 	Database Database `envPrefix:"DB_"`
 	Redis    Redis    `envPrefix:"REDIS_"`
+	Firebase Firebase `envPrefix:"FIREBASE_"`
+}
+
+// Firebase berisi kredensial service account untuk memverifikasi ID token
+// Firebase Auth.
+//
+// Nilainya di-encode base64 supaya kredensial JSON (multi-baris, berisi private
+// key) muat dalam SATU env var / secret manager entry — bukan file yang harus
+// di-mount. Cara mengisinya:
+//
+//	make firebase-credentials   # base64 -w 0 secrets/service-account.json
+type Firebase struct {
+	ServiceAccountBase64 string `env:"SERVICE_ACCOUNT_BASE64"` // wajib
 }
 
 // Database berisi kredensial & tuning connection pool pgx.
@@ -91,6 +104,9 @@ func (a *App) Validate() error {
 	case "", "json", "text":
 	default:
 		return fmt.Errorf("APP_LOG_FORMAT must be one of json|text (or empty for auto), got %q", a.LogFormat)
+	}
+	if strings.TrimSpace(a.Firebase.ServiceAccountBase64) == "" {
+		return fmt.Errorf("FIREBASE_SERVICE_ACCOUNT_BASE64 is required")
 	}
 	return nil
 }

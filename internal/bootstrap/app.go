@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"gepay/db/postgres"
 	"gepay/db/redis"
+	"gepay/internal/modules/identity"
 	"gepay/platform/config"
 	"gepay/platform/logger"
 	"gepay/platform/server"
@@ -98,8 +99,16 @@ func Run() error {
 
 	e := server.New(base)
 
-	// Route bawaan. Tambahkan route module SETELAH baris ini.
-	// Contoh: productModule.RegisterRoutes(e.Group("/api/v1"))
+	// Composition root: rakit module DI SINI dan suntikkan dependency-nya.
+	// Module lain yang butuh login menerima identityModule.Middleware dari sini,
+	identityModule, err := identity.New(ctx, &cfg.Firebase, pg, rdb)
+	if err != nil {
+		return fmt.Errorf("init identity module: %w", err)
+	}
+
+	api := e.Group("/api/v1")
+	identityModule.RegisterRoutes(api)
+
 	var shuttingDown atomic.Bool
 
 	e.GET("/health", func(c *echo.Context) error {

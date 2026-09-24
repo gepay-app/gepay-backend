@@ -5,7 +5,7 @@ import (
 	"encoding/json/v2"
 	"errors"
 	"fmt"
-	"gepay/internal/modules/identity/domain"
+	"gepay/internal/modules/identity/api/domain"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -24,7 +24,7 @@ func New(rdb *redis.Client) domain.AuthContextCache {
 // key satu-satunya tempat format key didefinisikan → tidak mungkin typo
 // beda antara Get/Set/Evict karena semua panggil fungsi yang sama.
 func (c *IdentityCache) key(id string) string {
-	return fmt.Sprintf("identity:authctx:%d", id)
+	return fmt.Sprintf("identity:authctx:%s", id)
 }
 
 func (i *IdentityCache) GetByProviderID(ctx context.Context, id string) (*domain.AuthContext, error) {

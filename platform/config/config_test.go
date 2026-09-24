@@ -10,10 +10,15 @@ import (
 
 const testDBURL = "postgres://root:root@localhost:5432/app?sslmode=disable"
 
+// testFirebaseCreds hanya perlu NON-KOSONG: config tidak mem-parse isi
+// kredensial — itu tugas provider Firebase saat startup.
+const testFirebaseCreds = "e30="
+
 // TestLoad_Defaults memastikan nilai default keluar dengan benar ketika env
 // (selain DB_URL yang wajib) belum di-set.
 func TestLoad_Defaults(t *testing.T) {
 	t.Setenv("DB_URL", testDBURL)
+	t.Setenv("FIREBASE_SERVICE_ACCOUNT_BASE64", testFirebaseCreds)
 
 	app, err := Load()
 	require.NoError(t, err)
@@ -43,6 +48,8 @@ func TestLoad_Override(t *testing.T) {
 		"DB_MIN_CONNS":   "0",
 		"REDIS_ADDR":     "redis:6379",
 		"REDIS_PASSWORD": "rahasia",
+
+		"FIREBASE_SERVICE_ACCOUNT_BASE64": testFirebaseCreds,
 	}
 	for k, v := range env {
 		t.Setenv(k, v)
@@ -84,6 +91,10 @@ func TestLoad_Validation(t *testing.T) {
 		"APP_LOG_FORMAT tidak dikenal": {
 			env:     map[string]string{"DB_URL": testDBURL, "APP_LOG_FORMAT": "xml"},
 			wantErr: "APP_LOG_FORMAT must be one of",
+		},
+		"FIREBASE_SERVICE_ACCOUNT_BASE64 kosong": {
+			env:     map[string]string{"DB_URL": testDBURL, "FIREBASE_SERVICE_ACCOUNT_BASE64": ""},
+			wantErr: "FIREBASE_SERVICE_ACCOUNT_BASE64 is required",
 		},
 	}
 

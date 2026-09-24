@@ -17,6 +17,9 @@ type IdentityUser struct {
 	Role           string
 	Status         string
 	KycStatus      string
+	FirstName      *string
+	LastName       *string
+	Nickname       *string
 	CreatedAt      pgtype.Timestamptz
 	UpdatedAt      pgtype.Timestamptz
 }
