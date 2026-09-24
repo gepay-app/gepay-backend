@@ -57,10 +57,10 @@ func New(ctx context.Context, cfg *config.Firebase, db *pgxpool.Pool, rdb *redis
 // wajib login; gate role per-endpoint ada di handler supaya sama persis dengan
 // aturan service.
 func (m *Module) RegisterRoutes(g *echo.Group) {
-	admin := g.Group("/admin", m.Middleware.RequireAuth)
+	admin := g.Group("/admin/identity", m.Middleware.RequireAuth)
 	m.handler.RegisterAdminRoutes(admin)
 
 	// User endpoints (hanya butuh login, bukan admin)
-	user := g.Group("", m.Middleware.RequireAuth)
+	user := g.Group("/identity", m.Middleware.RequireAuth)
 	m.handler.RegisterUserRoutes(user)
 }

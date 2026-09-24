@@ -12,6 +12,7 @@ type Service interface {
 	UpdateProfile(ctx context.Context, userID uuid.UUID, firstName, lastName, nickname string) error
 }
 
+// ini yang boleh di expose ke module lain
 type IdentityService interface {
 	ResolveAuthContext(ctx context.Context, rawToken string) (*AuthContext, error)
 }

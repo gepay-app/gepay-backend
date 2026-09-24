@@ -50,7 +50,8 @@ make dev
 | `cmd/app/main.go` | Entrypoint tipis → `bootstrap.Run()` | — |
 | `internal/bootstrap/app.go` | Composition root: wiring & lifecycle | menambah dependency / route |
 | `platform/config/` | Semua env config (struct-tag `caarlos0/env`) | menambah env var |
-| `platform/apperror/` | Error model (`status`/`message`/`errors`) | membuat error |
+| `platform/apperror/` | Error model (status HTTP + `message`/`errors`) | membuat error |
+| `platform/response/` | SATU bentuk response JSON (sukses + error) | mengirim response |
 | `platform/logger/` | `slog` via context + redaction | logging |
 | `platform/server/` | Setup Echo + `http.Server` | server |
 | `platform/server/middleware/` | request_id, logger, recover, error handler | middleware global |
@@ -144,8 +145,10 @@ internal/modules/<mod>/
 - Error dibuat lewat constructor `apperror.*` (`BadRequest`, `Unauthorized`,
   `Forbidden`, `NotFound`, `Conflict`, `Validation`, `Internal`,
   `TooManyRequests`, atau `New(status, message)`); handler cukup `return err`.
-  Response selalu `{status, message}` dan `{status, message, errors[]}` untuk
-  validasi — **tidak ada** `code`/`type`/`detail`.
+  Bentuk response ditentukan SATU tempat di `platform/response`: sukses
+  `{message, data}`, error biasa `{message}`, validasi `{message, errors[]}` —
+  **tidak ada** `code`/`type`/`detail`, dan status HTTP tidak diulang di body
+  (dikirim lewat header).
 - Jangan kembalikan detail error internal (cause, SQL) ke client — 5xx
   disanitasi otomatis oleh error handler; lampirkan cause lewat `.WithCause(err)`
   untuk kebutuhan log.
@@ -183,8 +186,10 @@ internal/modules/<mod>/
 ## Error & Validasi [WAJIB]
 
 - Satu tipe `*apperror.Error` untuk semua lapisan; pembeda utama adalah
-  **HTTP `status`**.
-- Response: `{status, message}` atau `{status, message, errors[]}` untuk validasi.
+  **HTTP `status`** (dikirim lewat header, TIDAK diulang di body).
+- Bentuk response sukses `{message, data}` via constructor `response.OK`/
+  `response.Created`; error `{message}` atau `{message, errors[]}` untuk
+  validasi. Semua didefinisikan di `platform/response`.
 - `platform/server/middleware.ErrorHandler` adalah **satu-satunya** tempat error
   diubah menjadi response JSON.
 - Handler tidak parsing error — cukup `return err`.

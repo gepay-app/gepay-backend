@@ -9,6 +9,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"gepay/platform/response"
 )
 
 // TestConstructors memastikan setiap constructor memakai status yang benar
@@ -50,11 +52,11 @@ func TestValidation(t *testing.T) {
 
 	t.Run("dengan field", func(t *testing.T) {
 		err := Validation("invalid input",
-			Field("email", "email is required"),
-			Field("password", "password must be at least 8 characters"),
+			response.Field("email", "email is required"),
+			response.Field("password", "password must be at least 8 characters"),
 		)
 		assert.Equal(t, http.StatusUnprocessableEntity, err.Status)
-		assert.Equal(t, []FieldError{
+		assert.Equal(t, []response.FieldError{
 			{Field: "email", Message: "email is required"},
 			{Field: "password", Message: "password must be at least 8 characters"},
 		}, err.Errors)
@@ -64,9 +66,9 @@ func TestValidation(t *testing.T) {
 // TestWithFieldsAppend memastikan WithFields/WithField menambah (bukan
 // menimpa), sehingga service bisa mengumpulkan beberapa sebab sekaligus.
 func TestWithFieldsAppend(t *testing.T) {
-	err := Validation("invalid input", Field("a", "a is required")).
+	err := Validation("invalid input", response.Field("a", "a is required")).
 		WithField("b", "b is required").
-		WithFields(Field("c", "c is required"))
+		WithFields(response.Field("c", "c is required"))
 
 	require.Len(t, err.Errors, 3)
 	assert.Equal(t, "a", err.Errors[0].Field)
@@ -94,26 +96,28 @@ func TestWithRetryAfter(t *testing.T) {
 	assert.Equal(t, http.StatusTooManyRequests, err.Status)
 }
 
-// TestResponseJSON memverifikasi bentuk JSON yang benar-benar dikirim:
+// TestResponseJSON memverifikasi bentuk JSON yang benar-benar dikirim.
+// Status TIDAK ada di body — hanya dikirim lewat header HTTP oleh
+// ErrorHandler. Yang diuji di sini hanya isi body:
 //
-//	{ "status": ..., "message": ... }                  (error biasa)
-//	{ "status": ..., "message": ..., "errors": [...] } (validasi)
+//	{ "message": ... }                  (error biasa)
+//	{ "message": ..., "errors": [...] } (validasi)
 func TestResponseJSON(t *testing.T) {
 	t.Run("error biasa tanpa errors", func(t *testing.T) {
 		raw, err := json.Marshal(NotFound("product not found").Response())
 		require.NoError(t, err)
 
-		assert.JSONEq(t, `{"status":404,"message":"product not found"}`, string(raw))
+		assert.JSONEq(t, `{"message":"product not found"}`, string(raw))
 		assert.NotContains(t, string(raw), "errors", "errors harus di-omit saat kosong")
+		assert.NotContains(t, string(raw), "status", "status tidak ada di body")
 	})
 
 	t.Run("error validasi dengan errors", func(t *testing.T) {
-		appErr := Validation("validation failed", Field("name", "name is required"))
+		appErr := Validation("validation failed", response.Field("name", "name is required"))
 		raw, err := json.Marshal(appErr.Response())
 		require.NoError(t, err)
 
 		assert.JSONEq(t, `{
-			"status": 422,
 			"message": "validation failed",
 			"errors": [{"field":"name","message":"name is required"}]
 		}`, string(raw))

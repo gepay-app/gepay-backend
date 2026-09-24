@@ -1,24 +1,16 @@
 // Package apperror menyediakan SATU tipe error untuk seluruh aplikasi
-// (service, handler, middleware) beserta bentuk JSON yang dikirim ke client.
+// (service, handler, middleware). Bentuk JSON yang dikirim ke client
+// didefinisikan di package response — error di sini cukup menyediakan isi
+// (message + errors), lalu ErrorHandler menulisnya ke client.
 //
-// Bentuk response selalu sesederhana ini:
+// HTTP status code dikirim lewat header HTTP; body TIDAK mengulang status:
 //
-//	{ "status": 404, "message": "product not found" }
-//
-// Khusus error validasi (422) ditambah daftar penyebab per-field:
-//
-//	{
-//	  "status": 422,
-//	  "message": "validation failed",
-//	  "errors": [
-//	    {"field": "discount", "message": "discount must not be set when coupon_id is used"},
-//	    {"field": "name",     "message": "name is required"}
-//	  ]
-//	}
+//	Error biasa:      { "message": "product not found" }
+//	Validation (422): { "message": "validation failed", "errors": [...] }
 //
 // Jadi:
-//   - `status`  → kode HTTP (satu-satunya pembeda jenis error bagi client).
-//   - `message` → penjelasan singkat yang aman dibaca user (bahasa Inggris).
+//   - `message` → penjelasan singkat yang aman dibaca user (bahasa Inggris);
+//     ini "alamat" untuk error biasa (service error, Not Found, Conflict, dll).
 //   - `errors`  → opsional, hanya untuk validasi; berisi field + alasannya.
 //
 // Error validasi boleh dibuat dari HANDLER (hasil go-playground/validator)
@@ -30,26 +22,9 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+
+	"gepay/platform/response"
 )
-
-// FieldError menjelaskan SATU field yang gagal validasi.
-//
-// `message` sebaiknya sudah menyebut nama field-nya, mis.
-// "email must be a valid email address" — supaya frontend bisa menampilkannya
-// langsung tanpa parsing.
-type FieldError struct {
-	Field   string `json:"field"`
-	Message string `json:"message"`
-}
-
-// Field adalah helper singkat untuk membuat FieldError.
-//
-//	if req.CouponID != nil && req.Discount != nil {
-//		errs = append(errs, apperror.Field("discount", "discount must not be set when coupon_id is used"))
-//	}
-func Field(field, message string) FieldError {
-	return FieldError{Field: field, Message: message}
-}
 
 // =============================================================================
 // Error — error aplikasi dari service/repository/handler
@@ -64,7 +39,7 @@ type Error struct {
 	// Message adalah penjelasan singkat untuk client (bahasa Inggris).
 	Message string
 	// Errors diisi HANYA untuk error validasi (biasanya status 422).
-	Errors []FieldError
+	Errors []response.FieldError
 
 	cause error
 	// RetryAfter opsional (detik). Kalau > 0, error handler set header
@@ -89,23 +64,13 @@ func (e *Error) StatusCode() int { return e.Status }
 // pernah dikirim ke client).
 func (e *Error) Cause() error { return e.cause }
 
-// Response mengubah error ini menjadi body JSON siap kirim.
-func (e *Error) Response() Response {
-	return Response{
-		Status:  e.Status,
+// Response mengubah error ini menjadi body JSON siap kirim (tanpa status —
+// status tetap dikirim ErrorHandler lewat header HTTP).
+func (e *Error) Response() response.Response {
+	return response.Response{
 		Message: e.Message,
 		Errors:  e.Errors,
 	}
-}
-
-// =============================================================================
-// Response — bentuk JSON yang dikirim ke client
-// =============================================================================
-
-type Response struct {
-	Status  int          `json:"status"`
-	Message string       `json:"message"`
-	Errors  []FieldError `json:"errors,omitempty"`
 }
 
 // =============================================================================
@@ -143,7 +108,7 @@ func TooManyRequests(message string) *Error {
 
 // Validation membuat error 422 dengan daftar field yang gagal.
 // Kalau message kosong, dipakai "validation failed".
-func Validation(message string, fields ...FieldError) *Error {
+func Validation(message string, fields ...response.FieldError) *Error {
 	if message == "" {
 		message = "validation failed"
 	}
@@ -173,14 +138,14 @@ func As(err error) (*Error, bool) {
 
 // WithFields menambahkan field error (append, bukan replace) sehingga
 // pemanggil bisa mengumpulkan beberapa sebab sekaligus.
-func (e *Error) WithFields(fields ...FieldError) *Error {
+func (e *Error) WithFields(fields ...response.FieldError) *Error {
 	e.Errors = append(e.Errors, fields...)
 	return e
 }
 
 // WithField menambahkan satu field error.
 func (e *Error) WithField(field, message string) *Error {
-	return e.WithFields(Field(field, message))
+	return e.WithFields(response.Field(field, message))
 }
 
 // WithCause membungkus error internal. Hanya untuk logging — detailnya

@@ -2,6 +2,7 @@ package validation
 
 import (
 	"gepay/platform/apperror"
+	"gepay/platform/response"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -28,7 +29,7 @@ func TestStruct(t *testing.T) {
 		input       any
 		wantErr     bool
 		wantMessage string
-		wantFields  []apperror.FieldError
+		wantFields  []response.FieldError
 	}{
 		"valid": {
 			input:   testRequest{Email: "a@b.com", Password: "12345678"},
@@ -38,7 +39,7 @@ func TestStruct(t *testing.T) {
 			input:       testRequest{Email: "invalid", Password: "123"},
 			wantErr:     true,
 			wantMessage: "validation failed",
-			wantFields: []apperror.FieldError{
+			wantFields: []response.FieldError{
 				{Field: "email", Message: "email must be a valid email address"},
 				{Field: "password", Message: "password must be at least 8 characters"},
 			},
@@ -47,7 +48,7 @@ func TestStruct(t *testing.T) {
 			input:       testRequest{Email: "", Password: "12345678"},
 			wantErr:     true,
 			wantMessage: "validation failed",
-			wantFields: []apperror.FieldError{
+			wantFields: []response.FieldError{
 				{Field: "email", Message: "email is required"},
 			},
 		},
@@ -55,7 +56,7 @@ func TestStruct(t *testing.T) {
 			input:       testRequestJSONTag{UserName: "ab"}, // min=3 → gagal
 			wantErr:     true,
 			wantMessage: "validation failed",
-			wantFields: []apperror.FieldError{
+			wantFields: []response.FieldError{
 				{Field: "user_name", Message: "user_name must be at least 3 characters"},
 			},
 		},
@@ -63,7 +64,7 @@ func TestStruct(t *testing.T) {
 			input:       testRequestBare{},
 			wantErr:     true,
 			wantMessage: "validation failed",
-			wantFields: []apperror.FieldError{
+			wantFields: []response.FieldError{
 				{Field: "Field", Message: "Field is required"},
 			},
 		},

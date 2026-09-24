@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"time"
 
+	echoMw "github.com/labstack/echo/v5/middleware"
+
 	"github.com/labstack/echo/v5"
 )
 
@@ -44,7 +46,12 @@ func New(base *slog.Logger) *echo.Echo {
 	e.Use(
 		middleware.RequestIDMiddleware(),
 		middleware.LoggerMiddleware(base),
-		middleware.RecoverMiddleware())
+		middleware.RecoverMiddleware(),
+		echoMw.CORSWithConfig(echoMw.CORSConfig{
+			AllowOrigins:     []string{"http://localhost:3000"},
+			AllowHeaders:     []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization},
+			AllowCredentials: false,
+		}))
 
 	return e
 }

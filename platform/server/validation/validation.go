@@ -15,6 +15,8 @@ import (
 	"sync"
 
 	"github.com/go-playground/validator/v10"
+
+	"gepay/platform/response"
 )
 
 // Validator adalah wrapper tipis di atas *validator.Validate.
@@ -65,9 +67,9 @@ func (v *Validator) Struct(s any) error {
 		return err
 	}
 
-	fields := make([]apperror.FieldError, len(verr))
+	fields := make([]response.FieldError, len(verr))
 	for i, fe := range verr {
-		fields[i] = apperror.FieldError{
+		fields[i] = response.FieldError{
 			Field:   fe.Field(),
 			Message: tagMessage(fe.Field(), fe.Tag(), fe.Param()),
 		}

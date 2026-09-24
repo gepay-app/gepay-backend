@@ -5,6 +5,7 @@ import (
 	"errors"
 	"gepay/platform/apperror"
 	"gepay/platform/logger"
+	"gepay/platform/response"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -16,15 +17,15 @@ import (
 )
 
 // TestErrorHandler memverifikasi ErrorHandler dengan 3 cabang:
-//  1. *apperror.Error → {status, message, errors?} (5xx disanitasi)
-//  2. error Echo yang membawa status → {status, message}
+//  1. *apperror.Error → {message, errors?} (5xx disanitasi)
+//  2. error Echo yang membawa status → {message}
 //  3. error lain → 500 generik + di-log
 func TestErrorHandler(t *testing.T) {
 	cases := map[string]struct {
 		handler      func(c *echo.Context) error
 		wantStatus   int
 		wantMessage  string
-		wantErrors   []apperror.FieldError
+		wantErrors   []response.FieldError
 		wantNoErrors bool
 		wantLogMsg   string // jika diisi, pastikan log dengan message ini tercatat
 	}{
@@ -49,13 +50,13 @@ func TestErrorHandler(t *testing.T) {
 		"apperror validasi dengan errors": {
 			handler: func(c *echo.Context) error {
 				return apperror.Validation("validation failed",
-					apperror.Field("email", "email must be a valid email address"),
-					apperror.Field("name", "name is required"),
+					response.Field("email", "email must be a valid email address"),
+					response.Field("name", "name is required"),
 				)
 			},
 			wantStatus:  http.StatusUnprocessableEntity,
 			wantMessage: "validation failed",
-			wantErrors: []apperror.FieldError{
+			wantErrors: []response.FieldError{
 				{Field: "email", Message: "email must be a valid email address"},
 				{Field: "name", Message: "name is required"},
 			},
@@ -120,9 +121,8 @@ func TestErrorHandler(t *testing.T) {
 
 			assert.Equal(t, wantStatus, rec.Code, "status code")
 
-			var resp apperror.Response
+			var resp response.Response
 			require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
-			assert.Equal(t, wantStatus, resp.Status, "response.status")
 			assert.Equal(t, tc.wantMessage, resp.Message, "response.message")
 
 			if tc.wantErrors != nil {
@@ -159,7 +159,7 @@ func TestErrorHandlerRetryAfter(t *testing.T) {
 	assert.Equal(t, http.StatusTooManyRequests, rec.Code)
 	assert.Equal(t, "60", rec.Header().Get(echo.HeaderRetryAfter))
 
-	var resp apperror.Response
+	var resp response.Response
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
 	assert.Equal(t, "too many login attempts", resp.Message)
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"gepay/platform/apperror"
 	"gepay/platform/logger"
+	"gepay/platform/response"
 	"log/slog"
 	"net/http"
 
@@ -15,9 +16,10 @@ import (
 // error menjadi response JSON. Handler cukup `return err` polos.
 //
 // Tiga cabang:
-//  1. *apperror.Error → {status, message, errors?}. Detail 5xx diganti pesan
-//     generik supaya cause internal (SQL, koneksi) tidak bocor ke client.
-//  2. Error Echo yang membawa status (mis. 404/405) → {status, message}.
+//  1. *apperror.Error → {message, errors?}. Status HTTP dikirim lewat header;
+//     detail 5xx diganti pesan generik supaya cause internal (SQL, koneksi)
+//     tidak bocor ke client.
+//  2. Error Echo yang membawa status (mis. 404/405) → {message}.
 //  3. Error lain → 500 generik + dicatat sebagai "unhandled internal error".
 //
 // Soal logging: 4xx TIDAK dicatat di sini — LoggerMiddleware sudah mencatatnya
@@ -45,8 +47,7 @@ func ErrorHandler(c *echo.Context, err error) {
 			l.ErrorContext(ctx, "internal error", attrs...)
 
 			// Pesan 5xx diganti generik; daftar field tidak dibocorkan.
-			writeError(c, apperror.Response{
-				Status:  ce.Status,
+			writeError(c, ce.Status, response.Response{
 				Message: http.StatusText(http.StatusInternalServerError),
 			})
 			return
@@ -58,7 +59,7 @@ func ErrorHandler(c *echo.Context, err error) {
 			c.Response().Header().Set(echo.HeaderRetryAfter, fmt.Sprint(ce.RetryAfter))
 		}
 
-		writeError(c, ce.Response())
+		writeError(c, ce.Status, ce.Response())
 		return
 	}
 
@@ -77,22 +78,24 @@ func ErrorHandler(c *echo.Context, err error) {
 			message = http.StatusText(http.StatusInternalServerError)
 		}
 
-		writeError(c, apperror.Response{Status: status, Message: message})
+		writeError(c, status, response.Response{Message: message})
 		return
 	}
 
 	l.ErrorContext(ctx, "unhandled internal error", slog.Any("error", err))
-	writeError(c, apperror.Response{
-		Status:  http.StatusInternalServerError,
+	writeError(c, http.StatusInternalServerError, response.Response{
 		Message: http.StatusText(http.StatusInternalServerError),
 	})
 }
 
 // writeError menulis response error yang konsisten:
 //
-//	{ "status": ..., "message": ..., "errors": [...] }
-func writeError(c *echo.Context, resp apperror.Response) {
-	if err := c.JSON(resp.Status, resp); err != nil {
+//	{ "message": ... }                 (error biasa)
+//	{ "message": ..., "errors": [...] } (validasi)
+//
+// Status HTTP dikirim lewat code pertama c.JSON — tidak ada status di body.
+func writeError(c *echo.Context, status int, resp response.Response) {
+	if err := c.JSON(status, resp); err != nil {
 		logger.FromContext(c.Request().Context()).
 			ErrorContext(
 				c.Request().Context(),
